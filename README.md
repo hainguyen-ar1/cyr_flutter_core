@@ -2,6 +2,8 @@
 
 Shared Flutter core library: configurable HTTP client, Bloc/Cubit base classes, dependency injection helpers, and error UI.
 
+**Tài liệu đầy đủ (tiếng Việt):** [docs/TAI_LIEU.md](docs/TAI_LIEU.md)
+
 ## Setup in host app
 
 ```yaml

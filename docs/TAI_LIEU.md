@@ -144,6 +144,9 @@ Gốc cấu hình truyền vào `AppCore.initialize`.
 | `headerProvider` | `Future<Map<String, String>> Function()?` | `null` | Header động mỗi request (token, locale…) |
 | `extraInterceptors` | `List<Interceptor>` | `[]` | Interceptor tùy chỉnh thêm vào Dio |
 | `enableLogging` | `bool` | `true` | Bật `LoggingInterceptor` |
+| `requestIdProvider` | `String Function()?` | `null` | Custom `X-Request-Id` |
+| `enableRequestId` | `bool` | `true` | Gắn `X-Request-Id` |
+| `unwrapEnvelope` | `bool` | `true` | Bật `ApiEnvelopeInterceptor` |
 
 ### `PresentationConfig`
 
@@ -167,9 +170,11 @@ final dio = HttpClientFactory.create(networkConfig);
 
 `HttpClientFactory` tạo `Dio` với `BaseOptions`, sau đó gắn interceptor theo thứ tự:
 
-1. `DynamicHeaderInterceptor` — nếu có `headerProvider`
-2. `LoggingInterceptor` — nếu `enableLogging == true`
-3. Các interceptor trong `extraInterceptors`
+1. `RequestIdInterceptor` — nếu `enableRequestId`
+2. `DynamicHeaderInterceptor` — nếu có `headerProvider`
+3. `ApiEnvelopeInterceptor` — nếu `unwrapEnvelope`
+4. `LoggingInterceptor` — nếu `enableLogging`
+5. `extraInterceptors`
 
 ### Đăng ký Dio vào GetIt
 
@@ -180,22 +185,54 @@ registerHttpClient(config.network, locator: AppCore.locator);
 
 Đăng ký dạng **lazy singleton**, có thể ghi đè bằng `registerLazySingletonOverride`.
 
+### Envelope StrangerConfide (REST)
+
+Mọi response backend dùng chung shape — xem [docs/ERROR_RESPONSE.md](ERROR_RESPONSE.md).
+
+| Thành phần | Vai trò |
+|------------|---------|
+| `ApiCode` | Enum mã lỗi/trạng thái (đồng bộ 1:1 backend) |
+| `ApiResponse<T>` | Parse envelope JSON |
+| `ApiError` | Lỗi normalize (`code`, `errors[]`, `requestId`, …) |
+| `ApiEnvelopeInterceptor` | Unwrap `data`; `success: false` → reject + `ApiError` |
+| `RequestIdInterceptor` | Header `X-Request-Id` |
+| `ApiClient` | GET/POST/… trả payload đã unwrap |
+
+```dart
+final client = AppCore.locator<ApiClient>();
+final profile = await client.get<Map<String, dynamic>>(
+  '/profile/me',
+  fromJson: (j) => Map<String, dynamic>.from(j! as Map),
+);
+
+// Switch theo code (không dựa message)
+try {
+  await client.post('/auth/login', data: body);
+} on DioException catch (e) {
+  final err = e.error as ApiError?;
+  if (err?.code == ApiCode.authInvalidCredentials.value) { /* ... */ }
+}
+```
+
+`registerHttpClient` đăng ký cả `Dio` và `ApiClient` (có thể tắt bằng `registerApiClient: false`).
+
 ### `ApiError`
 
 Model lỗi API thống nhất cho repository và UI.
 
 ```dart
 final err = ApiError.fromJson(responseData);
-// Hỗ trợ snake_case: status_code, message
-// và camelCase: statusCode, error
+// Hoặc: ApiError.fromEnvelope(envelope)
 ```
 
 | Trường | Mô tả |
 |--------|--------|
-| `statusCode` | Mã HTTP (tùy chọn) |
+| `statusCode` | Mã HTTP |
+| `code` | `ApiCode` string (machine-readable) |
 | `message` | Thông báo hiển thị |
-| `detail` | Chi tiết bổ sung |
-| `raw` | JSON gốc |
+| `errors` | `List<FieldError>?` — validation |
+| `requestId` / `path` | Tra log / debug |
+| `raw` | Envelope hoặc JSON gốc |
 
 ### `NetworkErrorMapper`
 
@@ -477,6 +514,7 @@ lib/
 | `AppCore` | Bootstrap |
 | `CoreConfig`, `NetworkConfig`, `PresentationConfig` | Config |
 | `HttpClientFactory`, `registerHttpClient` | HTTP |
+| `ApiCode`, `ApiResponse`, `FieldError`, `ApiClient` | Envelope REST |
 | `ApiError`, `NetworkErrorMapper`, `DefaultNetworkErrorMapper` | Lỗi mạng |
 | `DependencyLocator`, `configureDependencies`, `register*Override` | DI |
 | `DependencyOverrideModule` | DI module |

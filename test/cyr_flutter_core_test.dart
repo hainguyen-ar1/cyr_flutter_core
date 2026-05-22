@@ -42,7 +42,11 @@ void main() {
   group('DefaultNetworkErrorMapper', () {
     test('maps ApiError message', () {
       final mapper = DefaultNetworkErrorMapper();
-      const error = ApiError(message: 'Invalid input');
+      const error = ApiError(
+        statusCode: 400,
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid input',
+      );
       expect(mapper.map(error), 'Invalid input');
     });
 
@@ -63,20 +67,33 @@ void main() {
   });
 
   group('ApiError', () {
-    test('fromJson supports snake_case and camelCase', () {
-      final fromSnake = ApiError.fromJson({
+    test('fromJson parses full envelope', () {
+      final err = ApiError.fromJson({
+        'success': false,
+        'statusCode': 400,
+        'code': 'VALIDATION_ERROR',
+        'message': 'Dữ liệu không hợp lệ',
+        'data': null,
+        'errors': [
+          {'field': 'email', 'message': 'invalid'},
+        ],
+        'meta': null,
+        'requestId': 'req_x',
+        'path': '/api/x',
+        'timestamp': '2026-05-22T16:21:01.289Z',
+      });
+      expect(err.statusCode, 400);
+      expect(err.code, 'VALIDATION_ERROR');
+      expect(err.errors?.single.field, 'email');
+    });
+
+    test('fromJson supports legacy shapes', () {
+      final legacy = ApiError.fromJson({
         'status_code': 400,
         'message': 'Bad',
       });
-      expect(fromSnake.statusCode, 400);
-      expect(fromSnake.message, 'Bad');
-
-      final fromCamel = ApiError.fromJson({
-        'statusCode': 401,
-        'error': 'Unauthorized',
-      });
-      expect(fromCamel.statusCode, 401);
-      expect(fromCamel.message, 'Unauthorized');
+      expect(legacy.statusCode, 400);
+      expect(legacy.message, 'Bad');
     });
   });
 
@@ -94,7 +111,9 @@ void main() {
   group('AppResult', () {
     test('extensions expose value and error', () {
       const success = AppSuccess<int>(42);
-      final failure = AppFailure<int>(const ApiError(message: 'fail'));
+      final failure = AppFailure<int>(
+        const ApiError(statusCode: 500, code: 'INTERNAL_ERROR', message: 'fail'),
+      );
 
       expect(success.valueOrNull, 42);
       expect(success.isSuccess, isTrue);

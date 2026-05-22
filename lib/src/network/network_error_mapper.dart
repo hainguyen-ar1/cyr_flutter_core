@@ -32,6 +32,10 @@ class DefaultNetworkErrorMapper implements NetworkErrorMapper {
   }
 
   String _mapDio(DioException error) {
+    final inner = error.error;
+    if (inner is ApiError) {
+      return inner.message;
+    }
     final data = error.response?.data;
     if (data is Map<String, dynamic>) {
       if (data.containsKey('message')) {

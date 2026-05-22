@@ -542,7 +542,25 @@ Chạy test:
 flutter test
 ```
 
-Các nhóm test hiện có: `AppCore`, `HttpClientFactory`, `DefaultNetworkErrorMapper`, `ApiError`, dependency registry, `AppResult`.
+Cấu trúc test:
+
+```
+test/
+├── helpers/envelope_fixtures.dart   # success/error envelope + createMockDio
+├── network/                         # API core (ApiCode, ApiResponse, ApiError, …)
+└── cyr_flutter_core_test.dart       # AppCore, DI, AppResult
+```
+
+Chạy: `flutter test` (63 tests).
+
+Log có cấu trúc (Arrange / Act / Assert, PASS/FAIL, summary từng file):
+
+```bash
+flutter test
+# Tắt log: flutter test --dart-define=SILENT_TESTS=true
+```
+
+Helper: `test/helpers/test_logger.dart` — `loggedTest`, `loggedGroup`, `expectLogged`.
 
 ---
 

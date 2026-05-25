@@ -29,7 +29,7 @@ void main() {
         log: log,
       );
       final response = await dio.get('/items');
-      final envelope = ApiClient.envelopeFrom(response);
+      final envelope = ApiEnvelope.fromResponse(response);
       expectLogged(log, 'meta.total', envelope?.meta?['total'], 10);
       expectLogged(log, 'requestId', envelope?.requestId, 'req_meta');
     });
@@ -82,7 +82,7 @@ void main() {
       final dio = createMockDio(body: {'legacy': true}, log: log);
       final response = await dio.get('/legacy');
       expectLogged(log, 'body', response.data, {'legacy': true});
-      expectLogged(log, 'envelope', ApiClient.envelopeFrom(response), isNull);
+      expectLogged(log, 'envelope', ApiEnvelope.fromResponse(response), isNull);
     });
 
     loggedTest('keeps full envelope when unwrapData is false', (log) async {

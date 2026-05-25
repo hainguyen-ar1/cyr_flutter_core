@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
+import '../helpers/sample_rest_api.dart';
 import '../helpers/test_logger.dart';
 
 void main() {
@@ -36,30 +37,21 @@ void main() {
       );
     });
 
-    loggedTest('registers ApiClient by default', (log) {
+    loggedTest('registerRestApi registers lazy singleton', (log) {
       registerHttpClient(config, locator: locator);
+      registerRestApi<SampleRestApi>(SampleRestApi.new, locator: locator);
       expectLogged(
         log,
-        'isRegistered<ApiClient>',
-        locator.isRegistered<ApiClient>(),
+        'isRegistered<SampleRestApi>',
+        locator.isRegistered<SampleRestApi>(),
         isTrue,
       );
       expectLogged(
         log,
-        'same Dio instance',
-        locator<ApiClient>().dio,
-        same(locator<Dio>()),
+        'same instance on second resolve',
+        locator<SampleRestApi>(),
+        same(locator<SampleRestApi>()),
       );
-    });
-
-    loggedTest('skips ApiClient when registerApiClient is false', (log) {
-      registerHttpClient(
-        config,
-        locator: locator,
-        registerApiClient: false,
-      );
-      expectLogged(log, 'Dio', locator.isRegistered<Dio>(), isTrue);
-      expectLogged(log, 'ApiClient', locator.isRegistered<ApiClient>(), isFalse);
     });
 
     loggedTest('override replaces Dio registration', (log) {

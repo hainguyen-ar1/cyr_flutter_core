@@ -196,25 +196,33 @@ Mọi response backend dùng chung shape — xem [docs/ERROR_RESPONSE.md](ERROR_
 | `ApiError` | Lỗi normalize (`code`, `errors[]`, `requestId`, …) |
 | `ApiEnvelopeInterceptor` | Unwrap `data`; `success: false` → reject + `ApiError` |
 | `RequestIdInterceptor` | Header `X-Request-Id` |
-| `ApiClient` | GET/POST/… trả payload đã unwrap |
+| Retrofit (`@RestApi`) | Endpoint type-safe, payload đã unwrap |
+| `RestApiFactory`, `registerRestApi` | Tạo / đăng ký service trên `Dio` chung |
 
 ```dart
-final client = AppCore.locator<ApiClient>();
-final profile = await client.get<Map<String, dynamic>>(
-  '/profile/me',
-  fromJson: (j) => Map<String, dynamic>.from(j! as Map),
-);
+@RestApi()
+abstract class ProfileApi {
+  factory ProfileApi(Dio dio, {String baseUrl}) = _ProfileApi;
+
+  @GET('/profile/me')
+  Future<Map<String, Object?>> getMe();
+}
+
+registerHttpClient(config.network, locator: locator);
+registerRestApi<ProfileApi>(ProfileApi.new, locator: locator);
+
+final profile = await AppCore.locator<ProfileApi>().getMe();
 
 // Switch theo code (không dựa message)
 try {
-  await client.post('/auth/login', data: body);
+  await AppCore.locator<AuthApi>().login(body);
 } on DioException catch (e) {
   final err = e.error as ApiError?;
   if (err?.code == ApiCode.authInvalidCredentials.value) { /* ... */ }
 }
 ```
 
-`registerHttpClient` đăng ký cả `Dio` và `ApiClient` (có thể tắt bằng `registerApiClient: false`).
+`registerHttpClient` chỉ đăng ký `Dio`. Retrofit API đăng ký riêng qua `registerRestApi`.
 
 ### `ApiError`
 
@@ -514,7 +522,7 @@ lib/
 | `AppCore` | Bootstrap |
 | `CoreConfig`, `NetworkConfig`, `PresentationConfig` | Config |
 | `HttpClientFactory`, `registerHttpClient` | HTTP |
-| `ApiCode`, `ApiResponse`, `FieldError`, `ApiClient` | Envelope REST |
+| `ApiCode`, `ApiResponse`, `FieldError`, `ApiEnvelope`, Retrofit | Envelope REST |
 | `ApiError`, `NetworkErrorMapper`, `DefaultNetworkErrorMapper` | Lỗi mạng |
 | `DependencyLocator`, `configureDependencies`, `register*Override` | DI |
 | `DependencyOverrideModule` | DI module |

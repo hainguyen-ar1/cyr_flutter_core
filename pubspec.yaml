@@ -12,13 +12,17 @@ dependencies:
     sdk: flutter
 
   dio: ^5.7.0
+  retrofit: 4.9.2
   flutter_bloc: ^9.1.1
   get_it: ^8.0.3
   meta: ^1.15.0
+  anti_hook_vpn: ^1.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  build_runner: ^2.4.13
+  retrofit_generator: 10.2.6
 
 flutter:

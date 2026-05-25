@@ -53,7 +53,7 @@ Có thể dùng `git:` thay `path:` khi publish repo riêng.
 
 ### 3. Khởi tạo trong `main.dart` (bắt buộc)
 
-Gọi `AppCore.initialize()` **trước** `runApp()`. Đăng ký `Dio` + `ApiClient` qua `registerHttpClient`.
+Gọi `AppCore.initialize()` **trước** `runApp()`. Đăng ký `Dio` qua `registerHttpClient`, Retrofit API qua `registerRestApi`.
 
 ```dart
 import 'package:cyr_flutter_core/cyr_flutter_core.dart';
@@ -83,12 +83,13 @@ Future<void> main() async {
     config,
     setup: (locator) {
       registerHttpClient(config.network, locator: locator);
+      registerRestApi<AuthApi>(AuthApi.new, locator: locator);
 
       configureDependencies(
         manualRegistration: (locator) {
           // Đăng ký repository / service app cha tại đây
           // locator.registerLazySingleton<AuthRepository>(
-          //   () => AuthRepository(locator<ApiClient>()),
+          //   () => AuthRepository(locator<AuthApi>()),
           // );
         },
         locator: locator,
@@ -107,11 +108,28 @@ Future<Map<String, String>> _authHeaders() async {
 }
 ```
 
-**Lưu ý:** `AppCore.locator` là `GetIt` dùng chung; mọi feature resolve `ApiClient` / `Dio` từ đây.
+**Lưu ý:** `AppCore.locator` là `GetIt` dùng chung; mọi feature resolve Retrofit API / `Dio` từ đây.
 
-### 4. Gọi REST API từ feature (repository)
+### 4. Gọi REST API từ feature (Retrofit + repository)
 
-`ApiClient` trả **payload đã unwrap** (`data` trong envelope). Lỗi nghiệp vụ → `DioException` với `error` kiểu `ApiError`.
+Định nghĩa interface Retrofit trong app cha (cần `build_runner` + `retrofit_generator`):
+
+```dart
+import 'package:cyr_flutter_core/cyr_flutter_core.dart';
+import 'package:dio/dio.dart';
+
+part 'auth_api.g.dart';
+
+@RestApi()
+abstract class AuthApi {
+  factory AuthApi(Dio dio, {String baseUrl}) = _AuthApi;
+
+  @POST('/auth/login')
+  Future<Map<String, Object?>> login(@Body() Map<String, Object?> body);
+}
+```
+
+`ApiEnvelopeInterceptor` unwrap `data` trước khi Retrofit parse — return type là payload trong envelope. Lỗi nghiệp vụ → `DioException` với `error` kiểu `ApiError`.
 
 ```dart
 import 'package:cyr_flutter_core/cyr_flutter_core.dart';
@@ -120,21 +138,20 @@ import 'package:dio/dio.dart';
 class AuthRepository {
   AuthRepository(this._api);
 
-  final ApiClient _api;
+  final AuthApi _api;
 
   factory AuthRepository.fromLocator() =>
-      AuthRepository(AppCore.locator<ApiClient>());
+      AuthRepository(AppCore.locator<AuthApi>());
 
   Future<AppResult<AuthTokens>> login({
     required String email,
     required String password,
   }) async {
     try {
-      final json = await _api.post<Map<String, dynamic>>(
-        '/auth/login',
-        data: {'email': email, 'password': password},
-        fromJson: (raw) => Map<String, dynamic>.from(raw! as Map),
-      );
+      final json = await _api.login({
+        'email': email,
+        'password': password,
+      });
       return AppSuccess(AuthTokens.fromJson(json));
     } on DioException catch (e) {
       final apiError = e.error is ApiError
@@ -145,6 +162,8 @@ class AuthRepository {
   }
 }
 ```
+
+Generate code: `dart run build_runner build`
 
 **Xử lý theo `ApiCode`** (không dựa `message` — có thể đổi trên server):
 
@@ -197,7 +216,7 @@ Cần `meta` / `requestId` sau khi gọi:
 
 ```dart
 final response = await AppCore.locator<Dio>().get('/profile');
-final envelope = ApiClient.envelopeFrom(response);
+final envelope = ApiEnvelope.fromResponse(response);
 final requestId = envelope?.requestId;
 ```
 
@@ -212,7 +231,7 @@ import 'package:cyr_flutter_core/cyr_flutter_core.dart';
 
 void registerAppDependencies(GetIt locator) {
   locator.registerLazySingleton<AuthRepository>(
-    () => AuthRepository(locator<ApiClient>()),
+    () => AuthRepository(locator<AuthApi>()),
   );
   locator.registerFactory<LoginBloc>(
     () => LoginBloc(locator<AuthRepository>()),
@@ -332,7 +351,8 @@ NetworkConfig(
 | Symbol | Mục đích |
 |--------|----------|
 | `AppCore`, `CoreConfig`, `NetworkConfig`, `PresentationConfig` | Bootstrap |
-| `registerHttpClient`, `ApiClient`, `Dio` | HTTP |
+| `registerHttpClient`, `registerRestApi`, `RestApiFactory`, `Dio`, Retrofit | HTTP |
+| `ApiEnvelope` | Đọc meta/requestId từ envelope |
 | `ApiCode`, `ApiResponse`, `ApiError`, `FieldError` | Contract API |
 | `AppResult`, `AppSuccess`, `AppFailure` | Repository result |
 | `AppBloc`, `AppCubit`, `BlocHostPage` | State + lỗi UI |
@@ -361,7 +381,7 @@ lib/
 └── src/
     ├── app_core.dart
     ├── config/
-    ├── network/          # ApiClient, envelope, interceptors
+    ├── network/          # Retrofit helpers, envelope, interceptors
     ├── di/
     ├── bloc/
     ├── presentation/

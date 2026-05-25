@@ -3,33 +3,23 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/envelope_fixtures.dart';
+import '../helpers/sample_rest_api.dart';
 import '../helpers/test_logger.dart';
 
 void main() {
-  TestLogger.configureTestLogging(suiteLabel: 'network/api_client_test');
+  TestLogger.configureTestLogging(suiteLabel: 'network/rest_api_test');
 
-  late ApiClient client;
-
-  setUp(() {
-    client = ApiClient(
-      createMockDio(body: successEnvelope(data: {'ok': true})),
-    );
-  });
-
-  loggedGroup('ApiClient', () {
+  loggedGroup('RestApi (Retrofit)', () {
     loggedTest('get returns unwrapped data', (log) async {
       log.step('Arrange', 'mock GET /profile → userId=u1');
       final dio = createMockDio(
         body: successEnvelope(data: {'userId': 'u1'}, path: '/profile'),
         log: log,
       );
-      final api = ApiClient(dio);
+      final api = RestApiFactory.create(dio, SampleRestApi.new);
 
       log.step('Act', 'GET /profile');
-      final data = await api.get<Map<String, dynamic>>(
-        '/profile',
-        fromJson: (j) => Map<String, dynamic>.from(j! as Map),
-      );
+      final data = await api.getProfile();
 
       expectLogged(log, 'userId', data['userId'], 'u1');
     });
@@ -43,13 +33,13 @@ void main() {
         ),
         log: log,
       );
+      final api = RestApiFactory.create(dio, SampleRestApi.new);
 
       log.step('Act', 'POST credentials');
-      final result = await ApiClient(dio).post<Map<String, dynamic>>(
-        '/auth/login',
-        data: {'email': 'a@b.c', 'password': 'secret'},
-        fromJson: (j) => Map<String, dynamic>.from(j! as Map),
-      );
+      final result = await api.login({
+        'email': 'a@b.c',
+        'password': 'secret',
+      });
 
       expectLogged(log, 'accessToken', result['accessToken'], 'tok');
     });
@@ -59,13 +49,10 @@ void main() {
         body: successEnvelope(data: {'updated': true}),
         log: log,
       );
+      final api = RestApiFactory.create(dio, SampleRestApi.new);
 
       log.step('Act', 'PUT /profile');
-      final result = await ApiClient(dio).put<Map<String, dynamic>>(
-        '/profile',
-        data: {'bio': 'hi'},
-        fromJson: (j) => Map<String, dynamic>.from(j! as Map),
-      );
+      final result = await api.updateProfile({'bio': 'hi'});
 
       expectLogged(log, 'updated', result['updated'], isTrue);
     });
@@ -75,12 +62,10 @@ void main() {
         body: successEnvelope(data: 42),
         log: log,
       );
+      final api = RestApiFactory.create(dio, SampleRestApi.new);
 
       log.step('Act', 'PATCH /counter');
-      final result = await ApiClient(dio).patch<int>(
-        '/counter',
-        fromJson: (j) => j as int,
-      );
+      final result = await api.patchCounter();
 
       expectLogged(log, 'value', result, 42);
     });
@@ -90,15 +75,11 @@ void main() {
         body: successEnvelope(data: null, path: '/session'),
         log: log,
       );
+      final api = RestApiFactory.create(dio, SampleRestApi.new);
 
       log.step('Act', 'DELETE /session');
-      await ApiClient(dio).delete<dynamic>('/session');
+      await api.deleteSession();
       log.kv('response', 'completed (data=null)');
-    });
-
-    loggedTest('exposes underlying dio', (log) {
-      log.step('Assert', 'client.dio is registered');
-      expectLogged(log, 'dio', client.dio, isNotNull);
     });
 
     loggedTest('envelopeFrom returns null without interceptor', (log) async {
@@ -115,7 +96,12 @@ void main() {
 
       log.step('Act', 'GET /');
       final response = await dio.get('/');
-      expectLogged(log, 'envelope', ApiClient.envelopeFrom(response), isNull);
+      expectLogged(
+        log,
+        'envelope',
+        ApiEnvelope.fromResponse(response),
+        isNull,
+      );
     });
 
     loggedTest('propagates ApiError on business failure', (log) async {
@@ -130,10 +116,11 @@ void main() {
         ),
         log: log,
       );
+      final api = RestApiFactory.create(dio, SampleRestApi.new);
 
       log.step('Act', 'GET /users/1 (expect throw)');
       await expectLater(
-        ApiClient(dio).get('/users/1'),
+        api.getUser('1'),
         throwsA(isA<Exception>()),
       );
       log.kv('result', 'DioException propagated');

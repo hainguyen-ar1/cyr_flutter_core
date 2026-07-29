@@ -5,7 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import '../helpers/test_logger.dart';
 
 void main() {
-  TestLogger.configureTestLogging(suiteLabel: 'network/request_id_interceptor_test');
+  TestLogger.configureTestLogging(
+      suiteLabel: 'network/request_id_interceptor_test');
 
   loggedGroup('RequestIdInterceptor', () {
     loggedTest('sets custom X-Request-Id from provider', (log) async {
@@ -19,8 +20,8 @@ void main() {
       dio.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) {
-            headerValue = options.headers[RequestIdInterceptor.headerName]
-                as String?;
+            headerValue =
+                options.headers[RequestIdInterceptor.headerName] as String?;
             expectLogged(
               log,
               'extra request_id',

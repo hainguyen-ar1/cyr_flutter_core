@@ -1,6 +1,5 @@
 import 'package:cyr_flutter_core/cyr_flutter_core.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/envelope_fixtures.dart';
 import '../helpers/test_logger.dart';
@@ -11,7 +10,8 @@ class _SilentException implements Exception {
 }
 
 void main() {
-  TestLogger.configureTestLogging(suiteLabel: 'network/network_error_mapper_test');
+  TestLogger.configureTestLogging(
+      suiteLabel: 'network/network_error_mapper_test');
 
   loggedGroup('DefaultNetworkErrorMapper', () {
     const presentation = PresentationConfig(
@@ -72,7 +72,8 @@ void main() {
       expectLogged(log, 'message', mapper.map(dioError), 'No connection');
     });
 
-    loggedTest('uses unknownErrorMessage when exception has empty toString', (log) {
+    loggedTest('uses unknownErrorMessage when exception has empty toString',
+        (log) {
       expectLogged(log, 'message', mapper.map(_SilentException()), 'Unknown');
     });
   });

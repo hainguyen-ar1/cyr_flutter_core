@@ -20,7 +20,8 @@ export 'src/network/http_client_factory.dart';
 export 'src/network/interceptors/api_envelope_interceptor.dart';
 export 'src/network/interceptors/request_id_interceptor.dart';
 export 'src/network/network_error_mapper.dart';
-export 'package:retrofit/retrofit.dart' show Body, DELETE, GET, Headers, PATCH, POST, PUT, Path, Query, RestApi;
+export 'package:retrofit/retrofit.dart'
+    show Body, DELETE, GET, Headers, PATCH, POST, PUT, Path, Query, RestApi;
 export 'src/network/register_http_client.dart';
 export 'src/network/rest_api_factory.dart';
 export 'src/presentation/bloc_host_page.dart';

@@ -69,7 +69,8 @@ void main() {
     loggedTest('extensions expose value and error', (log) {
       const success = AppSuccess<int>(42);
       final failure = AppFailure<int>(
-        const ApiError(statusCode: 500, code: 'INTERNAL_ERROR', message: 'fail'),
+        const ApiError(
+            statusCode: 500, code: 'INTERNAL_ERROR', message: 'fail'),
       );
       expectLogged(log, 'valueOrNull', success.valueOrNull, 42);
       expectLogged(log, 'isSuccess', success.isSuccess, isTrue);

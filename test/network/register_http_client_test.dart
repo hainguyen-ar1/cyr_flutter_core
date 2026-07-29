@@ -7,7 +7,8 @@ import '../helpers/sample_rest_api.dart';
 import '../helpers/test_logger.dart';
 
 void main() {
-  TestLogger.configureTestLogging(suiteLabel: 'network/register_http_client_test');
+  TestLogger.configureTestLogging(
+      suiteLabel: 'network/register_http_client_test');
 
   late GetIt locator;
 
@@ -28,7 +29,8 @@ void main() {
     loggedTest('registers Dio lazy singleton', (log) {
       log.step('Act', 'registerHttpClient');
       registerHttpClient(config, locator: locator);
-      expectLogged(log, 'isRegistered<Dio>', locator.isRegistered<Dio>(), isTrue);
+      expectLogged(
+          log, 'isRegistered<Dio>', locator.isRegistered<Dio>(), isTrue);
       expectLogged(
         log,
         'baseUrl',

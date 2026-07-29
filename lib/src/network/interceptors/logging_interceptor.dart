@@ -12,7 +12,8 @@ class LoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (logRequestBody && options.data != null) {
-      log('→ ${options.method} ${options.uri}\n  Body: ${options.data}', name: 'HTTP');
+      log('→ ${options.method} ${options.uri}\n  Body: ${options.data}',
+          name: 'HTTP');
     }
     handler.next(options);
   }

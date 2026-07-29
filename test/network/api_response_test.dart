@@ -59,16 +59,20 @@ void main() {
 
   loggedGroup('ApiResponse.isEnvelope', () {
     loggedTest('returns true for standard envelope', (log) {
-      expectLogged(log, 'success', ApiResponse.isEnvelope(successEnvelope()), isTrue);
-      expectLogged(log, 'error', ApiResponse.isEnvelope(errorEnvelope()), isTrue);
+      expectLogged(
+          log, 'success', ApiResponse.isEnvelope(successEnvelope()), isTrue);
+      expectLogged(
+          log, 'error', ApiResponse.isEnvelope(errorEnvelope()), isTrue);
     });
 
     loggedTest('returns false for non-envelope shapes', (log) {
       log.step('Act', 'check invalid bodies');
       expectLogged(log, 'null', ApiResponse.isEnvelope(null), isFalse);
       expectLogged(log, 'string', ApiResponse.isEnvelope('string'), isFalse);
-      expectLogged(log, 'partial', ApiResponse.isEnvelope({'message': 'only'}), isFalse);
-      expectLogged(log, 'plain map', ApiResponse.isEnvelope({'foo': 'bar'}), isFalse);
+      expectLogged(
+          log, 'partial', ApiResponse.isEnvelope({'message': 'only'}), isFalse);
+      expectLogged(
+          log, 'plain map', ApiResponse.isEnvelope({'foo': 'bar'}), isFalse);
     });
   });
 }

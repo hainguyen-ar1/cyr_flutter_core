@@ -1,59 +1,40 @@
 # cyr_flutter_core
 
-Thư viện Flutter dùng chung cho app CYR / **StrangerConfide**: HTTP client (Dio), envelope REST API, DI (GetIt), Bloc/Cubit nền, và helper hiển thị lỗi.
+Shared Flutter foundation for production apps that use Dio, Retrofit, GetIt, and Bloc.
 
-| | |
-|---|---|
-| Phiên bản | `0.1.0` |
-| Dart SDK | `^3.5.0` |
-| Flutter | `>=3.22.0` |
-| Tài liệu chi tiết | [docs/TAI_LIEU.md](docs/TAI_LIEU.md) · [docs/ERROR_RESPONSE.md](docs/ERROR_RESPONSE.md) |
+`cyr_flutter_core` packages the repeatable app infrastructure used by CYR /
+StrangerConfide projects: HTTP client setup, API envelope handling, dependency
+registration, typed repository results, and shared Bloc/Cubit error handling.
 
----
+## Features
 
-## Tích hợp vào project cha
+* Configure a Dio client from one `NetworkConfig`.
+* Add request IDs, dynamic headers, debug logging, and extra interceptors.
+* Unwrap StrangerConfide-style API envelopes and normalize failures into `ApiError`.
+* Register Retrofit services and app dependencies through GetIt.
+* Return typed `AppResult<T>` values from repositories.
+* Reuse `AppBloc`, `AppCubit`, `BlocHostPage`, and `ErrorDialogMixin` for consistent UI errors.
 
-Phần dưới mô tả cách gắn package vào **app Flutter host** (ví dụ `stranger_confide_app` trong monorepo). Core **không** chứa UI feature, routing hay Socket.IO — chỉ nền kỹ thuật để feature layer gọi REST API.
+## Getting Started
 
-### 1. Cấu trúc monorepo gợi ý
-
-```
-monorepo/
-├── backend/                 # NestJS — nguồn contract API
-├── frontend/                # Next.js (tham chiếu client)
-├── cyr_flutter_core/        # package này
-└── stranger_confide_app/    # app Flutter cha
-    ├── lib/
-    │   ├── main.dart
-    │   ├── core/di/
-    │   └── features/
-    └── pubspec.yaml
-```
-
-### 2. Khai báo dependency
-
-Trong `pubspec.yaml` của **app cha**:
-
-```yaml
-dependencies:
-  flutter:
-    sdk: flutter
-  cyr_flutter_core:
-    path: ../cyr_flutter_core   # điều chỉnh path theo monorepo thực tế
-  flutter_bloc: ^9.1.1          # nếu dùng AppBloc / BlocHostPage
-```
-
-Sau đó:
+Add the package to your Flutter app:
 
 ```bash
-cd stranger_confide_app && flutter pub get
+flutter pub add cyr_flutter_core
 ```
 
-Có thể dùng `git:` thay `path:` khi publish repo riêng.
+If you define Retrofit APIs in the host app, also add the generator dependencies
+there:
 
-### 3. Khởi tạo trong `main.dart` (bắt buộc)
+```bash
+flutter pub add dio retrofit
+flutter pub add --dev build_runner retrofit_generator
+```
 
-Gọi `AppCore.initialize()` **trước** `runApp()`. Đăng ký `Dio` qua `registerHttpClient`, Retrofit API qua `registerRestApi`.
+## Usage
+
+Initialize the core package before `runApp()` and register the shared HTTP
+client in the setup callback.
 
 ```dart
 import 'package:cyr_flutter_core/cyr_flutter_core.dart';
@@ -64,18 +45,11 @@ Future<void> main() async {
 
   const config = CoreConfig(
     network: NetworkConfig(
-      // Khớp NEXT_PUBLIC_API_URL / backend — thường có suffix /api
       baseUrl: String.fromEnvironment(
         'API_BASE_URL',
-        defaultValue: 'http://localhost:3000/api',
+        defaultValue: 'https://api.example.com/api',
       ),
       enableLogging: bool.fromEnvironment('dart.vm.product') == false,
-      headerProvider: _authHeaders,
-    ),
-    presentation: const PresentationConfig(
-      errorDialogTitle: 'Lỗi',
-      errorDialogCloseLabel: 'Đóng',
-      connectionErrorMessage: 'Không kết nối được. Thử lại.',
     ),
   );
 
@@ -83,136 +57,76 @@ Future<void> main() async {
     config,
     setup: (locator) {
       registerHttpClient(config.network, locator: locator);
-      registerRestApi<AuthApi>(AuthApi.new, locator: locator);
-
-      configureDependencies(
-        manualRegistration: (locator) {
-          // Đăng ký repository / service app cha tại đây
-          // locator.registerLazySingleton<AuthRepository>(
-          //   () => AuthRepository(locator<AuthApi>()),
-          // );
-        },
-        locator: locator,
-      );
     },
   );
 
   runApp(const MyApp());
 }
-
-/// Token động mỗi request — implement theo storage app cha.
-Future<Map<String, String>> _authHeaders() async {
-  final token = await TokenStorage.readAccessToken();
-  if (token == null || token.isEmpty) return {};
-  return {'Authorization': 'Bearer $token'};
-}
 ```
 
-**Lưu ý:** `AppCore.locator` là `GetIt` dùng chung; mọi feature resolve Retrofit API / `Dio` từ đây.
-
-### 4. Gọi REST API từ feature (Retrofit + repository)
-
-Định nghĩa interface Retrofit trong app cha (cần `build_runner` + `retrofit_generator`):
+Register a Retrofit API from the host app:
 
 ```dart
 import 'package:cyr_flutter_core/cyr_flutter_core.dart';
 import 'package:dio/dio.dart';
 
-part 'auth_api.g.dart';
+part 'profile_api.g.dart';
 
 @RestApi()
-abstract class AuthApi {
-  factory AuthApi(Dio dio, {String baseUrl}) = _AuthApi;
+abstract class ProfileApi {
+  factory ProfileApi(Dio dio, {String baseUrl}) = _ProfileApi;
 
-  @POST('/auth/login')
-  Future<Map<String, Object?>> login(@Body() Map<String, Object?> body);
+  @GET('/profile')
+  Future<Map<String, Object?>> me();
+}
+
+void registerApis() {
+  registerRestApi<ProfileApi>(ProfileApi.new, locator: AppCore.locator);
 }
 ```
 
-`ApiEnvelopeInterceptor` unwrap `data` trước khi Retrofit parse — return type là payload trong envelope. Lỗi nghiệp vụ → `DioException` với `error` kiểu `ApiError`.
+Map repository calls to typed results:
 
 ```dart
-import 'package:cyr_flutter_core/cyr_flutter_core.dart';
-import 'package:dio/dio.dart';
+class ProfileRepository {
+  ProfileRepository(this._api);
 
-class AuthRepository {
-  AuthRepository(this._api);
+  final ProfileApi _api;
 
-  final AuthApi _api;
-
-  factory AuthRepository.fromLocator() =>
-      AuthRepository(AppCore.locator<AuthApi>());
-
-  Future<AppResult<AuthTokens>> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<AppResult<Map<String, Object?>>> me() async {
     try {
-      final json = await _api.login({
-        'email': email,
-        'password': password,
-      });
-      return AppSuccess(AuthTokens.fromJson(json));
-    } on DioException catch (e) {
-      final apiError = e.error is ApiError
-          ? e.error! as ApiError
-          : ApiError.fromDioException(e);
-      return AppFailure(apiError);
+      return AppSuccess(await _api.me());
+    } on DioException catch (error) {
+      return AppFailure(ApiError.fromDioException(error));
     }
   }
 }
 ```
 
-Generate code: `dart run build_runner build`
+When `NetworkConfig.unwrapEnvelope` is enabled, successful API responses are
+unwrapped from `data`. Failed envelopes are rejected as `DioException` values
+whose `error` can be converted to `ApiError`.
 
-**Xử lý theo `ApiCode`** (không dựa `message` — có thể đổi trên server):
+## API Envelope
 
-```dart
-void handleLoginFailure(ApiError err) {
-  switch (err.code) {
-    case 'AUTH_INVALID_CREDENTIALS':
-      // sai email/mật khẩu
-      break;
-    case 'VALIDATION_ERROR':
-      // err.fieldMessages['email'], err.errors, ...
-      break;
-    case 'AUTH_USER_BANNED':
-      break;
-    default:
-      break;
-  }
-  // Hoặc: err.apiCode == ApiCode.authInvalidCredentials
-}
-```
-
-### 5. Envelope API (contract backend)
-
-Mọi response REST StrangerConfide dùng chung shape (2xx và 4xx/5xx có JSON):
+The package expects this response shape when envelope unwrapping is enabled:
 
 ```json
 {
   "success": true,
   "statusCode": 200,
   "code": "OK",
-  "message": "Thành công",
-  "data": { },
+  "message": "Success",
+  "data": {},
   "errors": null,
   "meta": null,
-  "requestId": "req_…",
-  "path": "/api/…",
+  "requestId": "req_123",
+  "path": "/api/profile",
   "timestamp": "2026-05-22T16:21:01.289Z"
 }
 ```
 
-Package tự động (khi `unwrapEnvelope: true` — mặc định):
-
-| Thành phần | Việc làm |
-|------------|----------|
-| `ApiEnvelopeInterceptor` | `success: true` → `response.data` = `data`; `success: false` → reject + `ApiError` |
-| `RequestIdInterceptor` | Gắn `X-Request-Id` (server tôn trọng header này) |
-| `DynamicHeaderInterceptor` | Merge `headerProvider` (Bearer token, …) |
-
-Cần `meta` / `requestId` sau khi gọi:
+The original envelope remains available from a Dio `Response`:
 
 ```dart
 final response = await AppCore.locator<Dio>().get('/profile');
@@ -220,177 +134,24 @@ final envelope = ApiEnvelope.fromResponse(response);
 final requestId = envelope?.requestId;
 ```
 
-Chi tiết lỗi: [docs/ERROR_RESPONSE.md](docs/ERROR_RESPONSE.md).
+## Documentation
 
-### 6. Đăng ký DI feature trong app cha
+* [Full integration guide](doc/TAI_LIEU.md)
+* [Error response contract](doc/ERROR_RESPONSE.md)
+* [Example app entry point](example/main.dart)
+* [Publishing checklist](PUBLISHING.md)
 
-Ví dụ tách file `lib/core/di/injection.dart`:
-
-```dart
-import 'package:cyr_flutter_core/cyr_flutter_core.dart';
-
-void registerAppDependencies(GetIt locator) {
-  locator.registerLazySingleton<AuthRepository>(
-    () => AuthRepository(locator<AuthApi>()),
-  );
-  locator.registerFactory<LoginBloc>(
-    () => LoginBloc(locator<AuthRepository>()),
-  );
-}
-```
-
-Gọi trong `setup` của `AppCore.initialize`:
-
-```dart
-setup: (locator) {
-  registerHttpClient(config.network, locator: locator);
-  configureDependencies(
-    manualRegistration: registerAppDependencies,
-    locator: locator,
-  );
-},
-```
-
-### 7. Bloc + dialog lỗi (tùy chọn)
-
-Khi feature dùng `flutter_bloc`:
-
-```dart
-class LoginBloc extends AppBloc<LoginEvent, LoginState> {
-  LoginBloc(this._repo) : super(const LoginState.initial()) {
-    on<LoginSubmitted>(_onSubmit);
-  }
-
-  final AuthRepository _repo;
-
-  Future<void> _onSubmit(LoginSubmitted e, Emitter<LoginState> emit) =>
-      guard(() async {
-        emit(state.copyWith(status: LoginStatus.loading));
-        final result = await _repo.login(
-          email: e.email,
-          password: e.password,
-        );
-        switch (result) {
-          case AppSuccess(:final value):
-            emit(state.copyWith(status: LoginStatus.success, tokens: value));
-          case AppFailure(:final error):
-            throw error; // guard → errorStream → dialog
-        }
-      });
-}
-```
-
-UI — `BlocHostPage` tự hiện dialog từ `errorStream`:
-
-```dart
-class LoginPage extends BlocHostPage {
-  const LoginPage({super.key});
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends BlocHostPageState<LoginPage> {
-  @override
-  Stream<String> get errorStream => context.read<LoginBloc>().errorStream;
-
-  @override
-  Widget buildPage(BuildContext context) {
-    return /* form đăng nhập */;
-  }
-}
-```
-
-### 8. Interceptor tùy chỉnh (refresh token, v.v.)
-
-Thêm vào `NetworkConfig.extraInterceptors` **sau** interceptor core (đăng ký qua factory):
-
-```dart
-NetworkConfig(
-  baseUrl: apiBaseUrl,
-  headerProvider: _authHeaders,
-  extraInterceptors: [
-    RefreshTokenInterceptor(
-      dioProvider: () => AppCore.locator<Dio>(),
-      onLogout: () => /* điều hướng login */,
-    ),
-  ],
-),
-```
-
-Refresh token **không** có sẵn trong core — implement ở app cha, tương tự `frontend/src/lib/api.ts`.
-
-### 9. Biến môi trường / build flavor
+## Testing
 
 ```bash
-flutter run --dart-define=API_BASE_URL=https://api.staging.example.com/api
-```
-
-```dart
-NetworkConfig(
-  baseUrl: const String.fromEnvironment('API_BASE_URL'),
-  enableLogging: kDebugMode,
-),
-```
-
-### 10. Checklist tích hợp
-
-- [ ] `path` / `git` dependency trỏ đúng `cyr_flutter_core`
-- [ ] `AppCore.initialize` trước `runApp`
-- [ ] `registerHttpClient` trong `setup`
-- [ ] `baseUrl` khớp backend (có `/api` nếu server cấu hình vậy)
-- [ ] `headerProvider` gắn Bearer khi đã login
-- [ ] Repository `catch DioException` → `ApiError` / `AppFailure`
-- [ ] UI/Bloc switch theo `ApiCode`, không hard-code `message`
-- [ ] Feature DI đăng ký trong `configureDependencies`
-
----
-
-## Export chính
-
-| Symbol | Mục đích |
-|--------|----------|
-| `AppCore`, `CoreConfig`, `NetworkConfig`, `PresentationConfig` | Bootstrap |
-| `registerHttpClient`, `registerRestApi`, `RestApiFactory`, `Dio`, Retrofit | HTTP |
-| `ApiEnvelope` | Đọc meta/requestId từ envelope |
-| `ApiCode`, `ApiResponse`, `ApiError`, `FieldError` | Contract API |
-| `AppResult`, `AppSuccess`, `AppFailure` | Repository result |
-| `AppBloc`, `AppCubit`, `BlocHostPage` | State + lỗi UI |
-| `configureDependencies`, `register*Override` | DI |
-
----
-
-## Kiểm thử package
-
-```bash
-cd cyr_flutter_core
 flutter test
-# Log chi tiết: mặc định bật
-# Tắt log: flutter test --dart-define=SILENT_TESTS=true
+flutter analyze
+flutter pub publish --dry-run
 ```
 
-Trong test app cha, `tearDown` gọi `AppCore.reset()` nếu dùng config/locator toàn cục.
+Before publishing, run `pana` on a copy of the package to estimate pub points:
 
----
-
-## Cấu trúc mã nguồn
-
+```bash
+dart pub global activate pana
+dart pub global run pana .
 ```
-lib/
-├── cyr_flutter_core.dart
-└── src/
-    ├── app_core.dart
-    ├── config/
-    ├── network/          # Retrofit helpers, envelope, interceptors
-    ├── di/
-    ├── bloc/
-    ├── presentation/
-    └── result/
-```
-
----
-
-## Tài liệu thêm
-
-- [docs/TAI_LIEU.md](docs/TAI_LIEU.md) — hướng dẫn đầy đủ từng module
-- [docs/ERROR_RESPONSE.md](docs/ERROR_RESPONSE.md) — contract lỗi, `ApiCode`, debug `requestId`

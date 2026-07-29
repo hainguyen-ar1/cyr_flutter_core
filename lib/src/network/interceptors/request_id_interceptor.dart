@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 
-/// Gắn `X-Request-Id` cho mọi request — khớp [RequestIdMiddleware] backend.
+/// Gắn `X-Request-Id` cho mọi request — khớp `RequestIdMiddleware` backend.
 class RequestIdInterceptor extends Interceptor {
   const RequestIdInterceptor({this.requestIdProvider});
 

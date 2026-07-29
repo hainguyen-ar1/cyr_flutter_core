@@ -48,7 +48,8 @@ class ApiError implements Exception {
       return ApiError.fromEnvelope(ApiResponse<dynamic>.fromJson(json));
     }
     return ApiError(
-      statusCode: json['status_code'] as int? ?? json['statusCode'] as int? ?? 0,
+      statusCode:
+          json['status_code'] as int? ?? json['statusCode'] as int? ?? 0,
       code: json['code'] as String? ??
           json['error'] as String? ??
           ClientApiCode.networkError,

@@ -1,7 +1,15 @@
 name: cyr_flutter_core
-description: Shared Flutter core — network, bloc, dependency injection, and presentation helpers.
+description: Shared Flutter foundation for Dio networking, Retrofit APIs, GetIt dependency injection, Bloc state, and typed API results.
 version: 0.1.0
-homepage:
+homepage: https://github.com/hainguyen-ar1/cyr_flutter_core
+repository: https://github.com/hainguyen-ar1/cyr_flutter_core
+issue_tracker: https://github.com/hainguyen-ar1/cyr_flutter_core/issues
+topics:
+  - flutter
+  - dio
+  - retrofit
+  - bloc
+  - get-it
 
 environment:
   sdk: ^3.5.0
@@ -12,17 +20,16 @@ dependencies:
     sdk: flutter
 
   dio: ^5.7.0
-  retrofit: 4.9.2
+  retrofit: ^4.9.2
   flutter_bloc: ^9.1.1
-  get_it: ^8.0.3
+  get_it: ^9.2.1
   meta: ^1.15.0
-  anti_hook_vpn: ^1.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
   build_runner: ^2.4.13
-  retrofit_generator: 10.2.6
+  retrofit_generator: ^10.2.8
 
 flutter:

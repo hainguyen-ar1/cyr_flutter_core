@@ -8,10 +8,9 @@ import 'package:flutter/material.dart';
 mixin ErrorDialogMixin<T extends StatefulWidget> on State<T> {
   StreamSubscription<String>? _errorSubscription;
 
-  PresentationConfig get presentationConfig =>
-      AppCore.isInitialized
-          ? AppCore.config.presentation
-          : const PresentationConfig();
+  PresentationConfig get presentationConfig => AppCore.isInitialized
+      ? AppCore.config.presentation
+      : const PresentationConfig();
 
   void listenErrors(Stream<String> stream) {
     _errorSubscription?.cancel();
@@ -21,7 +20,8 @@ mixin ErrorDialogMixin<T extends StatefulWidget> on State<T> {
   void _showErrorDialog(String message) {
     if (!mounted) return;
     final config = presentationConfig;
-    final primary = config.primaryColor ?? Theme.of(context).colorScheme.primary;
+    final primary =
+        config.primaryColor ?? Theme.of(context).colorScheme.primary;
 
     showDialog<void>(
       context: context,

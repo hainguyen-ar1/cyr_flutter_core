@@ -34,7 +34,7 @@ extension AppResultX<T> on AppResult<T> {
   /// Unwrap thành công → trả `T`.
   /// Thất bại → gọi [onFailure] (nếu có) rồi tự động throw [ApiError].
   ///
-  /// Dùng trong `guard()` của Bloc: lỗi bị bắt tự động → [errorStream] → dialog.
+  /// Dùng trong `guard()` của Bloc: lỗi bị bắt tự động → `errorStream` → dialog.
   ///
   /// ```dart
   /// // Tự động hoàn toàn — không cần viết thêm gì:

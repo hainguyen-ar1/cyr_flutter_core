@@ -187,7 +187,7 @@ registerHttpClient(config.network, locator: AppCore.locator);
 
 ### Envelope StrangerConfide (REST)
 
-Mọi response backend dùng chung shape — xem [docs/ERROR_RESPONSE.md](ERROR_RESPONSE.md).
+Mọi response backend dùng chung shape — xem [doc/ERROR_RESPONSE.md](ERROR_RESPONSE.md).
 
 | Thành phần | Vai trò |
 |------------|---------|

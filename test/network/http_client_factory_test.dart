@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import '../helpers/test_logger.dart';
 
 void main() {
-  TestLogger.configureTestLogging(suiteLabel: 'network/http_client_factory_test');
+  TestLogger.configureTestLogging(
+      suiteLabel: 'network/http_client_factory_test');
 
   loggedGroup('HttpClientFactory', () {
     loggedTest('creates Dio with baseUrl and default headers', (log) {
@@ -65,7 +66,8 @@ void main() {
       );
     });
 
-    loggedTest('omits ApiEnvelopeInterceptor when unwrapEnvelope is false', (log) {
+    loggedTest('omits ApiEnvelopeInterceptor when unwrapEnvelope is false',
+        (log) {
       final dio = HttpClientFactory.create(
         const NetworkConfig(
           baseUrl: 'https://api.test/',

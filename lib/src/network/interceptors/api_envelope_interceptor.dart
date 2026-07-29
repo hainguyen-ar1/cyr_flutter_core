@@ -67,7 +67,8 @@ class ApiEnvelopeInterceptor extends Interceptor {
     );
   }
 
-  DioException _reject(Response<dynamic> response, ApiResponse<dynamic> envelope) {
+  DioException _reject(
+      Response<dynamic> response, ApiResponse<dynamic> envelope) {
     final apiError = ApiError.fromEnvelope(envelope);
     return DioException(
       requestOptions: response.requestOptions,

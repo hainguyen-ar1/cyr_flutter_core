@@ -6,7 +6,8 @@ import '../helpers/envelope_fixtures.dart';
 import '../helpers/test_logger.dart';
 
 void main() {
-  TestLogger.configureTestLogging(suiteLabel: 'network/api_envelope_interceptor_test');
+  TestLogger.configureTestLogging(
+      suiteLabel: 'network/api_envelope_interceptor_test');
 
   loggedGroup('ApiEnvelopeInterceptor', () {
     loggedTest('unwraps data on success', (log) async {
@@ -50,8 +51,7 @@ void main() {
         throwsA(
           predicate<DioException>((e) {
             final err = e.error;
-            return err is ApiError &&
-                err.code == 'AUTH_INVALID_CREDENTIALS';
+            return err is ApiError && err.code == 'AUTH_INVALID_CREDENTIALS';
           }),
         ),
       );
